@@ -193,43 +193,49 @@ const logoutUser = asyncHandler(async (req, res) => {
 })
 
 
-const refreshAccessToken = asyncHandler( async (req, res) => {
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken 
+const refreshAccessToken = asyncHandler( async (req, res) => {  // refresh access token
+    // req body => refresh token
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken // taking refresh token from cookies or body
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Unauthorized Request")
     }
 
    try {
-     const decodedToken = jwt.verify(
-         incomingRefreshToken,
-         process.env.REFRESH_TOKEN_SECRET
+     const decodedToken = jwt.verify(   // verify the refresh token
+         incomingRefreshToken,      // using jwt to verify the token
+         process.env.REFRESH_TOKEN_SECRET // using the secret key to verify the token   
      )
  
-     const user = await User.findById(decodedToken?._id)
-     if (!user) {
-         throw new ApiError(401, "Invalid Refresh Token")
+     const user = await User.findById(decodedToken?._id)    // find the user by id from the decoded token
+     // console.log("user in refresh token", user); 
+     if (!user) {       
+         throw new ApiError(401, "Invalid Refresh Token")       
      }
  
-     if (incomingRefreshToken !== user?.refreshToken) {
-         throw new ApiError(401, " Refresh Token is expired or used ")
+     if (incomingRefreshToken !== user?.refreshToken) {         // if the incoming refresh token does not match the user's refresh token
+         // console.log("incoming refresh token", incomingRefreshToken);
+         throw new ApiError(401, " Refresh Token is expired or used ")  // throw an error
      }
  
-     const options = {
-         httpOnly:true,
-         secure: true,
+     const options = {      // set the options for the cookies
+        //  expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+         httpOnly:true,         // httpOnly means the cookie cannot be accessed by JavaScript
+        //  sameSite: "strict",    // sameSite means the cookie cannot be accessed by other sites      
+         secure: true,  // secure means the cookie can only be accessed over HTTPS
+        //  domain: process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost"
      }
  
-     const {accessToken, newrefreshToken} = await generateAccessAndRefreshToken(user._id)
+     const {accessToken, newrefreshToken} = await generateAccessAndRefreshToken(user._id)   // generate new access and refresh token
  
-     return res
-     .status(200)
-     .cookie("accessToken",accessToken, options )
-     .cookie("refreshToken", newrefreshToken ,options)
-     .json(
-         new ApiResponse(
+     return res     // return the response with the new access and refresh token
+     .status(200)       
+     .cookie("accessToken",accessToken, options ) // set the access token cookie
+     .cookie("refreshToken", newrefreshToken ,options)  // set the refresh token cookie
+     .json( // return the response with the new access and refresh token
+         new ApiResponse(   // status code
              200,
-             {accessToken, refreshToken: newrefreshToken},
+             {accessToken, refreshToken: newrefreshToken},      // return the access and refresh token
              "Access token refreshed"
          )
      )
