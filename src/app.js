@@ -15,6 +15,9 @@ app.use(express.json({limit: "16kb"}))
 app.use(express.urlencoded({extended: true, limit: "16kb"}))
 app.use(express.static("public"))
 app.use(cookieParser())
+app.use(express.json()); // for application/json
+app.use(express.urlencoded({ extended: true })); // for form submissions
+
 
 //import routes
 import userRouter from './routes/user.routes.js'
