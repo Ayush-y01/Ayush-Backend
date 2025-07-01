@@ -28,8 +28,6 @@ const generateAccessAndRefreshToken = async (userId) => {
 
 
 
-
-
 const registerUser = asyncHandler( async (req, res, ) => {
     
     const {fullname, email, username, password} = req.body
@@ -244,12 +242,155 @@ const refreshAccessToken = asyncHandler( async (req, res) => {  // refresh acces
 })
 
 
+const changeCurrentPassword = asyncHandler( async (req,res,) => {   // change current password
+    // req body => old password, new password, confirm password
+    const {oldPassword, newPassword, confPassword} = req.body   // destructuring the req body   
+
+    if (!(newPassword == confPassword)) {                       // check if the new password and confirm password are same
+        throw new ApiError(401, "Password was Incorrect")       // throw an error if they are not same
+    }
+
+    const user = await User.findById(req.user?._id)             // find the user by id from the req.user object
+    // if (!user) {                                                // if the user does not exist
+    //     throw new ApiError(404, "User not found")
+    // }                                                                       
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword) // check if the old password is correct
+
+    if (!isPasswordCorrect) {                                           // if the old password is not correct
+        // console.log("old password is incorrect");    
+        throw new ApiError(400, "Invalid old password")                 // throw an error
+    }
+
+    user.password = newPassword                                         // set the new password to the user object
+    await user.save({       // save the user object to the database                 
+        validateBeforeSave: false       // do not validate the user object before saving it
+    })
+
+    return res                  // return the response with the success message
+        // .cookie("accessToken", user.generateAccessToken(), { // // set the access token cookie
+        //     httpOnly: true,  // httpOnly means the cookie cannot be accessed by JavaScript
+        //     sameSite: "strict", // sameSite means the cookie cannot be accessed by other sites
+        //     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        //     domain: process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost",        
+
+        //     secure: true,    // secure means the cookie can only be accessed over HTTPS
+        //     // domain: process.env.NODE_ENV === "production" ? process.env.DOMAIN : "localhost"      
+        // })      
+    .status(200)    // set the status code to 200
+    .json(new ApiResponse(200, {}, "password changed successFully!!"))  // return the response with the success message
+
+
+})
+
+
+const getCurrentUser = asyncHandler( async (req, res,) => { // get current user
+    return res.status(200)      // set the status code to 200
+    .json(200, req.user, " Current user Fetched successfully")  // return the response with the current user object and success message
+})
+
+
+const updateAccountDetails = asyncHandler( async (req, res,) => {   // update account details
+    // req body => fullname, email
+    const {fullname, email} = req.body  // destructuring the req body
+
+    if (!(fullname || email)) {     // check if fullname or email is present
+        throw new ApiError(400, " all fields are require")
+    }
+
+    User.findByIdAndUpdate(     //  find the user by id and update the user object
+        req.user?._id,          // using the user id from the req.user object
+        {
+            $set: {                 // set the fullname and email to the user object
+                // username: username.toLowerCase(),    // username is not being updated here
+                fullname: fullname,     // set the fullname to the user object
+                email: email,           // set the email to the user object
+            }
+        },
+        {new: true} // return the updated user object   
+    ).select(" -password")      // select the user object without the password field
+
+
+    return res          //  return the response with the updated user object and success message
+    .status(200)        // set the status code to 200
+    .json( new ApiResponse(200, user, "Account Details updated successfully"))  // return the response with the updated user object and success message
+
+})
+
+const updateUserAvatar = asyncHandler (async (req, res,) => {
+    const avatarLocalPath = req.file?.path      // get the avatar file path from the req.file object
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, " Avatar file is missing")
+    }
+
+    const avatar = await uploadOnCloud(avatarLocalPath)     // upload the avatar file to cloudinary
+
+    if (!avatar.url) {      // check if the avatar url is present
+        throw new ApiError(400, "Error while uploading on avatar")
+    }
+
+    const user = await User.findByIdAndUpdate(      // find the user by id and update the user object
+        req.user?._id,      // using the user id from the req.user object
+        {
+            $set: {     // set the avatar url to the user object
+                avatar: avatar.url  // set the avatar url to the user object
+            }
+
+        },
+        {new: true}     // return the updated user object
+    ).select(" -password")  // select the user object without the password field
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "update Avatar successfully")
+    )
+
+})
+
+const updateUserCoverImage = asyncHandler (async (req, res,) => {
+    const coverImageLocalPath = req.file?.path      // get the cover image file path from the req.file object
+
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, " cover image file is missing")
+    }
+
+    const coverImage = await uploadOnCloud(coverImageLocalPath)     // upload the cover image file to cloudinary
+
+    if (!coverImage.url) {
+        throw new ApiError(400, "Error while uploading on cover Image")
+    }
+
+    const user = await User.findByIdAndUpdate(      // find the user by id and update the user object
+        req.user?._id,      // using the user id from the req.user object
+        {
+            $set: {     //  set the cover image url to the user object
+                coverImage: coverImage.url      //  set the cover image url to the user object
+            }
+
+        },
+        {new: true}     // return the updated user object
+    ).select(" -password")  // select the user object without the password field
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "update cover image successfully")
+    )
+
+})
+
 
 
 export { registerUser,
          loginUser,
          logoutUser,
-         refreshAccessToken
+         refreshAccessToken,
+         changeCurrentPassword,
+         getCurrentUser,
+         updateAccountDetails,
+         updateUserAvatar,
+         updateUserCoverImage
  }
 
 
