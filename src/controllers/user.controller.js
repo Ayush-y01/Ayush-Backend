@@ -11,14 +11,14 @@ import jwt from "jsonwebtoken"
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
-        const user = await User.findById(userId)
-        const accessToken = user.generateAccessToken()
-        const refreshToken = user.generateRefreshToken()
+        const user = await User.findById(userId)    // Find the user by ID
+        const accessToken = user.generateAccessToken()  //  Generate an access token for the user
+        const refreshToken = user.generateRefreshToken()    // Generate a refresh token for the user
 
-        user.refreshToken = refreshToken
-        await user.save({ validateBeforeSave: false })
+        user.refreshToken = refreshToken    // Set the refresh token in the user object
+        await user.save({ validateBeforeSave: false })  // Save the user object without validating it before saving
 
-        return { accessToken, refreshToken}
+        return { accessToken, refreshToken} // Return the access and refresh tokens
 
     } catch (error) {
         throw new ApiError(500, "something went wrong will genrating access and refresh")
@@ -30,17 +30,17 @@ const generateAccessAndRefreshToken = async (userId) => {
 
 const registerUser = asyncHandler( async (req, res, ) => {
     
-    const {fullname, email, username, password} = req.body
-    console.log("email: ", email);
+    const {fullname, email, username, password} = req.body  // Destructure the request body to get user details
+    console.log("email: ", email);  // Log the email for debugging purposes
     if ( 
-        [fullname, email, username, password].some((field) => field?.trim() === "") 
+        [fullname, email, username, password].some((field) => field?.trim() === "")     // Check if any of the required fields are empty or contain only whitespace 
     ) {
         throw new ApiError(400, "all field are required")
     }
 
 
-    const existeduser = await User.findOne({
-        $or: [{ username }, { email }]
+    const existeduser = await User.findOne({    // Check if a user with the same email or username already exists
+        $or: [{ username }, { email }]      // Use $or operator to find a user with either the same username or email
     })
 
     
@@ -73,17 +73,17 @@ const registerUser = asyncHandler( async (req, res, ) => {
     //     throw new ApiError(400, "Avatar file is Require on cloud")
     // }
 
-    const user = await User.create({
-        fullname,
+    const user = await User.create({    // Create a new user object with the provided details
+        fullname,       // fullname is the name of the user
         // avatar: avatarLocalPath.url,
         // coverImage: coverImageOnCloud?.url || "",
-        email,
-        password,
-        username: username.toLowerCase()
+        email,      // email is the email of the user
+        password,       // password is the password of the user
+        username: username.toLowerCase()        // username is the username of the user
     })
 
-    const createduser = await User.findById(user._id).select(
-        "-password -refreshToken"
+    const createduser = await User.findById(user._id).select(   // Find the created user by ID and select specific fields to return
+        "-password -refreshToken"   // Exclude sensitive fields like password and refreshToken from the response
     )
 
     if (!createduser) {
@@ -93,8 +93,8 @@ const registerUser = asyncHandler( async (req, res, ) => {
     // console.log(req.body);
     
     
-    return res.status(201).json(
-        new ApiResponse(200, createduser, "user register successfull")
+    return res.status(201).json(    // Return a response with status code 201 (Created) and the created user object
+        new ApiResponse(200, createduser, "user register successfull")  // Create a new ApiResponse object with status code 200, the created user object, and a success message
     )
     
     
@@ -111,7 +111,7 @@ const loginUser = asyncHandler( async (req, res, ) => {
     // response
     
 
-    const { username, email, password } = req.body
+    const { username, email, password } = req.body  // Destructure the request body to get user credentials
     // console.log(email);
     
 
@@ -119,42 +119,43 @@ const loginUser = asyncHandler( async (req, res, ) => {
         throw new ApiError(400, "username or email is require")
     }
 
-    const user = await User.findOne({ 
-        $or: [ {username}, {email} ]
+    const user = await User.findOne({   // Find a user with the provided username or email
+        $or: [ {username}, {email} ]    // Use $or operator to find a user with either the same username or email
      })
 
      if (!user) {
         throw new ApiError(404, "user does not exist")
      }
 
-    const isPasswordVaild = await user.isPasswordCorrect(password)
+    const isPasswordVaild = await user.isPasswordCorrect(password)  // Check if the provided password matches the user's password
  
      if (!isPasswordVaild) {
         throw new ApiError(401, "password was Incorrect")
      }
 
-     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)
+     const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id)  // Generate access and refresh tokens for the user
 
-    const loggedInUser = await User.findById(user._id).
-    select ("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id)  // Find the logged-in user by ID
+    .select ("-password -refreshToken") // Exclude sensitive fields like password and refreshToken from the response
 
 
-    const options = {
-        httpOnly: true,
-        secure: true,
+
+    const options = {       // Set the options for the cookies
+        httpOnly: true,     // httpOnly means the cookie cannot be accessed by JavaScript
+        secure: true,       // secure means the cookie can only be sent over HTTPS
     }
 
-    return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-        new ApiResponse(
+    return res              // Return a response with status code 200 (OK) and set the access and refresh tokens as cookies
+    .status(200)             // Set the status code to 200   
+    .cookie("accessToken", accessToken, options)    // Set the access token cookie with the specified options
+    .cookie("refreshToken", refreshToken, options)  // Set the refresh token cookie with the specified options
+    .json(  // Return a JSON response with the logged-in user object, access token, and refresh token
+        new ApiResponse(    //  Create a new ApiResponse object with status code 200, the logged-in user object, access token, and refresh token
             200,
             {
-                user: loggedInUser, accessToken, refreshToken
+                user: loggedInUser, accessToken, refreshToken   //  Return the logged-in user object, access token, and refresh token
             }, 
-            "user logged in successfully"
+            "user logged in successfully"       
         )
     )
 
@@ -162,29 +163,29 @@ const loginUser = asyncHandler( async (req, res, ) => {
 
 
 const logoutUser = asyncHandler(async (req, res) => {
-    User.findByIdAndUpdate(
-        req.user._id,
+    User.findByIdAndUpdate( // find the user by id from the req.user object
+        req.user._id,   // using the user id from the req.user object
         {
-            $set: {
-                refreshToken: undefined,
+            $set: {     // set the refresh token to undefined in the user object
+                refreshToken: undefined,    // set the refresh token to undefined in the user object
             }
         },
         {
-            new: true
+            new: true   // return the updated user object
         }
     )
 
     
-    const options = {
-        httpOnly: true,
-        secure: true,
+    const options = {   // set the options for the cookies
+        httpOnly: true, // httpOnly means the cookie cannot be accessed by JavaScript
+        secure: true,   // secure means the cookie can only be accessed over HTTPS
     }
 
-    return res
-    .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
-    .json(new ApiResponse(200, {}, "user logged out"))
+    return res          // return the response with the success message and clear the access and refresh token cookies
+    .status(200)        // set the status code to 200
+    .clearCookie("accessToken", options)    //  clear the access token cookie
+    .clearCookie("refreshToken", options)   // clear the refresh token cookie
+    .json(new ApiResponse(200, {}, "user logged out"))  // return the response with the success message
 
 })
 
@@ -381,6 +382,77 @@ const updateUserCoverImage = asyncHandler (async (req, res,) => {
 })
 
 
+const getUserChannelProfile = asyncHandler( async (req, res, ) => {
+    const {username} = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "username is missing")
+    }
+
+    // User.find({username})
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },{
+            $lookup: {
+                from: "subscriptions",
+                localField: "._id",
+                foreignField: "channel",
+                as: "subscription"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "._id",
+                foreignField: "subscriber",
+                as: "subscriberTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscriber"
+                },
+                channelsSubscriberTo: {
+                    $size: "subscriberTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullname: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscriberTo: 1,
+                isSubscribed: 1,
+
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, " channel does not exists!!")
+    }
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, channel[0], "User channel fetched successfullu")
+    )
+
+})
+
+
 
 export { registerUser,
          loginUser,
@@ -390,7 +462,8 @@ export { registerUser,
          getCurrentUser,
          updateAccountDetails,
          updateUserAvatar,
-         updateUserCoverImage
+         updateUserCoverImage,
+         getUserChannelProfile
  }
 
 
